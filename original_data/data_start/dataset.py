@@ -1,0 +1,6 @@
+TRAIN_FILE = 'train_node_id.txt'
+TRAIN_LABEL = 'train_label.tsv'
+TEST_FILE = 'test_node_id.txt'
+INFO_FILE = 'config.yml'
+FEA_TABLE = 'feature.tsv'
+EDGE_FILE = 'edge.tsv'
