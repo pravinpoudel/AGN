@@ -29,6 +29,11 @@ from torch_geometric.data import Data
 
 DATASET_DIR = '/work/GNN/original_data'
 _seperator = "\t"
+
+#TODO: Check about lexical scoping in python; and you can sepcify cuda id as well; learn about that as well
+# torch.cuda.is_available() is available flag remain throughout the program
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 # modelsOption = {
 #     'GCNL' : GCNL,
 #     'GAT' : GAT,
@@ -145,6 +150,16 @@ def main(args):
         torch.save([conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask], loadedFile)
     else:
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = torch.load(loadedFile)
+
+    # https://pytorch-geometric.readthedocs.io/en/latest/modules/data.html
+    # create homogeneous graph: Awesome tool
+    #TODO: Watch more videos in pytorch-geometric
+    # in documentation: https://pytorch-geometric.readthedocs.io/en/1.3.2/modules/data.html shape [num_nodes, num_node_features] mean shape should be this value
+    # we already have that shape; don't get confused with [] it just mean tuple of shape tensor.shape()
+
+    data = Data(x=features, edge_index=edge_index, edge_attr=edges_attr, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = test_mask  )
+    # print(data.validation_mask)
+    # learned that after y it is same as rest parameter in JS and Data is nothing just a dictionary
 
 
 
