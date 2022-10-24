@@ -108,7 +108,7 @@ def retriveData(dataDir):
     # we can store lable of vertex in an array because same data is divided into two part
     train_mask = np.zeros(features.shape[0],  dtype=bool)
     test_mask = np.zeros(features.shape[0],  dtype=bool)
-    validation_mask = np.random(features.shape[0]) < ratio_VD
+    validation_mask = np.random.rand(features.shape[0]) < ratio_VD
     _class = [];
     for index, row in test_labels.iterrows():
         node1, label1 = row.tolist() 
