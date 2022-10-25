@@ -34,10 +34,10 @@ _seperator = "\t"
 # torch.cuda.is_available() is available flag remain throughout the program
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-# modelsOption = {
-#     'GCNL' : GCNL,
-#     'GAT' : GAT,
-# }
+modelsOption = {
+    'GCNL' : GCNL,
+    'GAT' : GAT,
+}
 
 def retriveData(dataDir):
     myDirName = os.path.join(DATASET_DIR, dataDir, "train.data") 
@@ -143,12 +143,16 @@ def retriveData(dataDir):
 
 def main(args):
     # print(args)
+    model_type = args.M
+    print(model_type)
     # if this is running for first time in the dataset run the code otherwise use stored processed dataset from the multiple dataset files
     loadedFile = os.path.join(DATASET_DIR, args.dataset, "load.pt")
     if not os.path.exists(loadedFile):
+        print("data loading from source")
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = retriveData(args.dataset)
         torch.save([conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask], loadedFile)
     else:
+        print("loaded from the loaded file")
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = torch.load(loadedFile)
 
     # https://pytorch-geometric.readthedocs.io/en/latest/modules/data.html
@@ -160,8 +164,9 @@ def main(args):
     data = Data(x=features, edge_index=edge_index, edge_attr=edges_attr, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = test_mask  )
     # print(data.validation_mask)
     # learned that after y it is same as rest parameter in JS and Data is nothing just a dictionary
-
-
+    # https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
+    # creates an another array with data as an element and "device:cpu" as second element
+    data = data.to(device)
 
 if __name__ == "__main__":
     print("------------------------------------------------------")
