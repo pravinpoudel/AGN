@@ -7,4 +7,4 @@
 load.pt file
 
 ### Next thing to find out
-How to send homogeneous graph dictionary by pytorch geometry in the training
+How to send homogeneous graph dictionary into batches by pytorch geometry in the training
