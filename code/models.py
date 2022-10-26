@@ -43,16 +43,18 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
         g = self.layer1Conv(g, edge_index)
-        g = F.relu(g)
+        g = nn.ReLU(g)
         # right now value is 0.5 and default is also 0.5 so i am not passing this value
         g = F.dropout(g, training=self.training)
         g = self.layer2Conv(g, edge_index)
-        g = F.relu(g)
+        g = nn.ReLU(g)
         g = F.dropout(g, training=self.training)
         # why do we do linear ? 
         # https://www.sharetechnote.com/html/Python_PyTorch_nn_Linear_01.html
         g = self.layer3Linear(g)
+        # no softmax at the end because we are going to use cross entropy
+        return g
         # nn.Softmax() creates a modile and return function whereas F's are pure function
-        return F.log_softmax(g) # F.log_softmax is numerically more stable https://discuss.pytorch.org/t/what-is-the-difference-between-log-softmax-and-softmax/11801/8
+        # return F.log_softmax(g) # F.log_softmax is numerically more stable https://discuss.pytorch.org/t/what-is-the-difference-between-log-softmax-and-softmax/11801/8
     
 

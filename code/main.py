@@ -3,8 +3,11 @@ from cgi import test
 from distutils.command.config import config
 # from importlib.resources import path
 import os
+from pickletools import optimize
+import sys
 from pickle import TRUE
 from platform import node
+from pyexpat import model
 from statistics import mode
 import yaml
 
@@ -25,7 +28,7 @@ import torch.nn.functional as F
 # boss is here !!
 from torch_geometric.data import Data
 #import training model class
-# from models import GCNL, GAT 
+from models import GCNN 
 
 DATASET_DIR = '/work/GNN/original_data'
 _seperator = "\t"
@@ -35,8 +38,8 @@ _seperator = "\t"
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 modelsOption = {
-    'GCNL' : GCNL,
-    'GAT' : GAT,
+    'GCNL' : GCNN,
+    # 'GAT' : GAT,
 }
 
 def retriveData(dataDir):
@@ -167,6 +170,34 @@ def main(args):
     # https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
     # creates an another array with data as an element and "device:cpu" as second element
     data = data.to(device)
+
+    try:
+        model = modelsOption["GCNL"](7, conf_data["feature_count"], hidden_layers=32)
+        print("your model is created successfully")
+    except:
+        print("sorry ", sys.exc_info()[0], "happened")
+
+
+    # https://www.youtube.com/watch?v=7q7E91pHoW4&ab_channel=PythonEngineer
+    loss_fn = nn.CrossEntropyLoss() 
+    # create optimizer
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+    # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
+    numb_epoch = 2
+    # As the number of epochs increases, more number of times the weight are changed in the neural network and the curve goes from underfitting to optimal to overfitting curve.
+    for epoch in range(numb_epoch):
+        # training
+        optimizer.zero_grad()
+        #TODO: learn how to pass only train mask data inside the loss function 
+        loss_fn(model(data)[], data.y[]).backward()
+        optimizer.step()
+
+        with torch.no_grad():
+        #set flag to disable grad calculation because you don't want to change parameter
+        #  and weight on testing and validation
+
+
+
 
 if __name__ == "__main__":
     print("------------------------------------------------------")
