@@ -189,15 +189,13 @@ def main(args):
         # training
         optimizer.zero_grad()
         #TODO: learn how to pass only train mask data inside the loss function 
-        loss_fn(model(data)[], data.y[]).backward()
+        loss_fn(model(data)[data.train_mask], data.y[data.train_mask]).backward()
         optimizer.step()
 
         with torch.no_grad():
+            print("model evaluation going on")
         #set flag to disable grad calculation because you don't want to change parameter
         #  and weight on testing and validation
-
-
-
 
 if __name__ == "__main__":
     print("------------------------------------------------------")
