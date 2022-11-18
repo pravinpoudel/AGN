@@ -184,18 +184,26 @@ def main(args):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
     numb_epoch = 2
-    # As the number of epochs increases, more number of times the weight are changed in the neural network and the curve goes from underfitting to optimal to overfitting curve.
-    for epoch in range(numb_epoch):
-        # training
+
+    def training_step(model, data, optimizer):
         optimizer.zero_grad()
         #TODO: learn how to pass only train mask data inside the loss function 
         loss_fn(model(data)[data.train_mask], data.y[data.train_mask]).backward()
         optimizer.step()
 
+    # As the number of epochs increases, more number of times the weight are changed in the neural network and the curve goes from underfitting to optimal to overfitting curve.
+    for epoch in range(numb_epoch):
+        # training
+        model.train()
+        training_step(model, data, optimizer)
+
         with torch.no_grad():
+            model.eval()
             print("model evaluation going on")
         #set flag to disable grad calculation because you don't want to change parameter
         #  and weight on testing and validation
+        
+    
 
 if __name__ == "__main__":
     print("------------------------------------------------------")

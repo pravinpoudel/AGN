@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import sklearn.metrics as metrics
-from torch_geometric.nn import GCNConv, GATConv
+from torch_geometric.nn import GCNConv, GATConv, SAGEConv, TAGConv
 # GCNConv is a class not functon so we have to create the instance of this class in init
 
 #TODO: rather than putting seperate name for each convolution put all the convolution in an array and iterate that array like this
@@ -58,3 +58,60 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
         # return F.log_softmax(g) # F.log_softmax is numerically more stable https://discuss.pytorch.org/t/what-is-the-difference-between-log-softmax-and-softmax/11801/8
     
 
+class GAT(nn.Module):
+    def __init__(self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, has_edge_feature = True) :
+        super(GAT, self).__init__()
+        self.layer1Conv = GATConv(input_numbers, hidden_layers, heads = 8)
+        self.layer2Conv = GATConv(hidden_layers, hidden_layers, heads = 8)
+        self.linear = nn.Linear(hidden_layers,numb_classfic)
+        self.drop = drop_out_rate
+
+
+
+    def forward(self, data):
+        g, edge_index = data.x, data.edge_index
+        g  = self.layer1Conv(g, edge_index)
+        g  = nn.ReLU(g)
+        g  = F.dropout(g, p= self.drop, training = self.trainng)
+        g  = self.layer2Conv(g, edge_index)
+        g  = nn.ReLU()
+        g  = F.dropout(g, p= self.drop, trainng=self.training)
+        g = self.linear(g)
+        return g    
+    
+
+class SAGE(nn.Module):
+    def __init__(self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, has_edge_feature = True):
+        super(SAGE, self).__init__()
+        self.layer1Conv = SAGEConv(input_numbers, hidden_layers) 
+        self.layer2Conv = SAGEConv(hidden_layers, hidden_layers)
+        self.linear = nn.Linear(hidden_layers, numb_classfic)
+        self.drop_rate =   drop_out_rate
+    
+    def forward(self, data):
+        g, edge_index = data.x, data.edge_index
+        g = self.layer1Conv()
+        g = F.relu(g)
+        g = F.dropout(g, p= self.drop_rate, training=self.training)
+        g = self.linear(g)
+        return g
+
+class TAGE(nn.Module):
+    def __init__ (self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, k=3, has_edge_feature = True):
+        super(TAGE, self).__init__()
+        self.layer1Conv = TAGConv(input_numbers, hidden_layers, K=k) 
+        self.layer2Conv = TAGConv(hidden_layers, hidden_layers, K=k)
+        self.linear =  nn.Linear(hidden_layers, numb_classfic, K=k)
+        self.drop_rate = drop_out_rate
+
+    def forward(self, data):
+        g, edge_index = data.x, data.edge_index
+        g = self.layer1Conv(g, edge_index)
+        g = F.relu(g)
+        g = F.dropout(g, p = self.drop_rate, training=self.training)
+        g = self.layer2Conv(g, edge_index)
+        g = F.relu(g)
+        g = F.dropout(g, p = self.drop_rate, training=self.training)
+        g = self.linear(g)
+        return g
+    #  dont know about TAGE nned to check documentation and examples
