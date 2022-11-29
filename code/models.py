@@ -43,11 +43,11 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
         g = self.layer1Conv(g, edge_index)
-        g = nn.ReLU(g)
+        g = F.relu(g)
         # right now value is 0.5 and default is also 0.5 so i am not passing this value
         g = F.dropout(g, training=self.training)
         g = self.layer2Conv(g, edge_index)
-        g = nn.ReLU(g)
+        g = F.relu(g)
         g = F.dropout(g, training=self.training)
         # why do we do linear ? 
         # https://www.sharetechnote.com/html/Python_PyTorch_nn_Linear_01.html

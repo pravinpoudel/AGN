@@ -144,6 +144,11 @@ def retriveData(dataDir):
     return conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask
 
 
+def accuracy_calculation(logits, labels):
+    indices = logits.argmax(dim=-1)
+    return (indices == labels).float().mean().item()
+
+
 def main(args):
     # print(args)
     model_type = args.M
@@ -183,27 +188,44 @@ def main(args):
     # create optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-    numb_epoch = 2
+    numb_epoch = 200
+
+    model.train()
 
     def training_step(model, data, optimizer):
+        print("training starts")
         optimizer.zero_grad()
+        outgraph = model(data)
+        loss = F.nll_loss(outgraph[data.train_mask], data.y[data.train_mask])
+        train_acc = accuracy_calculation(outgraph[data.train_mask], data.y[data.train_mask])
+        print(train_acc)
         #TODO: learn how to pass only train mask data inside the loss function 
         loss_fn(model(data)[data.train_mask], data.y[data.train_mask]).backward()
         optimizer.step()
-
+    
+    eval_maxAccuracy = 0
     # As the number of epochs increases, more number of times the weight are changed in the neural network and the curve goes from underfitting to optimal to overfitting curve.
     for epoch in range(numb_epoch):
         # training
-        model.train()
         training_step(model, data, optimizer)
-
         with torch.no_grad():
             model.eval()
             print("model evaluation going on")
         #set flag to disable grad calculation because you don't want to change parameter
         #  and weight on testing and validation
-        
     
+    with torch.no_grad():
+        model.eval()
+        outgraph = model(data)
+        evaluation_accuracy = accuracy_calculation(outgraph[data.test_mask], data.y[data.test_mask])
+        if evaluation_accuracy > eval_maxAccuracy:
+            eval_maxAccuracy = evaluation_accuracy
+            max_eval_epoch = epoch
+        # elif epoch - max_eval_epoch >= 10: 
+            # break
+        model.train()
+        print(evaluation_accuracy)
+
 
 if __name__ == "__main__":
     print("------------------------------------------------------")
