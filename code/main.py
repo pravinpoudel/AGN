@@ -261,7 +261,7 @@ def main(args):
     # https://www.youtube.com/watch?v=7q7E91pHoW4&ab_channel=PythonEngineer
     # loss_fn = nn.CrossEntropyLoss() 
     # create optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.02, weight_decay=0.0003)
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
     numb_epoch = 200
     model.resetParameter()
@@ -278,6 +278,7 @@ def main(args):
     averageTestingAccuracy = 0        
     for epoch in range(numb_epoch):
         optimizer.zero_grad()
+        print("---------------")
         print("training")        
         trainOut = model(data)
             # print("training accuracy")
@@ -308,6 +309,11 @@ def main(args):
             # elif epoch - max_eval_epoch >= 50: 
                 # break
             model.train()
+        
+        if((epoch+1)%10):
+            print("------------------- Accuracy in epoch:", epoch+1, "---------------------------------------------------")
+            print(averageTrainingAccuracy/(epoch+1))
+            print(averageTestingAccuracy/(epoch+1))
         # summary(model=model, input_size=(1, conf_data["feature_count"], 64, 64, conf_data["class_count"]))  
     end = time.time()
     print("average training accuracy: ", averageTrainingAccuracy/numb_epoch)
