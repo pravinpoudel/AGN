@@ -40,6 +40,12 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
     # it is only used as output layer of neural network
     # you can consider higher proability as actual output
 
+    def resetParameter(self):
+        # return super().register_parameter(name, param)
+        self.layer1Conv.reset_parameters()
+        self.layer2Conv.reset_parameters()
+        # self.layer1Conv.reset_parameters()
+
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
         g = self.layer1Conv(g, edge_index)
@@ -53,7 +59,7 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
         # https://www.sharetechnote.com/html/Python_PyTorch_nn_Linear_01.html
         g = self.layer3Linear(g)
         # no softmax at the end because we are going to use cross entropy
-        return g
+        return F.log_softmax(g, dim=1)
         # nn.Softmax() creates a modile and return function whereas F's are pure function
         # return F.log_softmax(g) # F.log_softmax is numerically more stable https://discuss.pytorch.org/t/what-is-the-difference-between-log-softmax-and-softmax/11801/8
     
@@ -61,23 +67,27 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
 class GAT(nn.Module):
     def __init__(self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, has_edge_feature = True) :
         super(GAT, self).__init__()
-        self.layer1Conv = GATConv(input_numbers, hidden_layers, heads = 8)
-        self.layer2Conv = GATConv(hidden_layers, hidden_layers, heads = 8)
+        self.layer1Conv = GATConv(input_numbers, hidden_layers, heads = 8, dropout=drop_out_rate, concat=False)
+        self.layer2Conv = GATConv(hidden_layers, hidden_layers, heads = 8, dropout=drop_out_rate, concat=False)
         self.linear = nn.Linear(hidden_layers,numb_classfic)
         self.drop = drop_out_rate
 
-
+    def resetParameter(self):
+        self.layer1Conv.reset_parameters()
+        self.layer2Conv.reset_parameters()
+        # nn.init.normal_(self.linear.weight)
+        # nn.init.normal_(self.linear.bias)
 
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
         g  = self.layer1Conv(g, edge_index)
-        g  = nn.ReLU(g)
-        g  = F.dropout(g, p= self.drop, training = self.trainng)
+        g  = F.relu(g)
+        g  = F.dropout(g, p= self.drop, training = self.training)
         g  = self.layer2Conv(g, edge_index)
-        g  = nn.ReLU()
-        g  = F.dropout(g, p= self.drop, trainng=self.training)
+        g  = F.relu(g)
+        g  = F.dropout(g, p= self.drop, training=self.training)
         g = self.linear(g)
-        return g    
+        return F.log_softmax(g, dim=1)    
     
 
 class SAGE(nn.Module):
@@ -85,25 +95,39 @@ class SAGE(nn.Module):
         super(SAGE, self).__init__()
         self.layer1Conv = SAGEConv(input_numbers, hidden_layers) 
         self.layer2Conv = SAGEConv(hidden_layers, hidden_layers)
-        self.linear = nn.Linear(hidden_layers, numb_classfic)
+        self.layer3Conv = SAGEConv(hidden_layers, numb_classfic)
+        # self.linear = nn.Linear(hidden_layers, numb_classfic)
         self.drop_rate =   drop_out_rate
+    
+    def resetParameter(self):
+        self.layer1Conv.reset_parameters()
+        self.layer2Conv.reset_parameters()
     
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
-        g = self.layer1Conv()
+        g = self.layer1Conv(g, edge_index)
         g = F.relu(g)
         g = F.dropout(g, p= self.drop_rate, training=self.training)
-        g = self.linear(g)
-        return g
+        g = self.layer2Conv(g, edge_index)
+        g = F.relu(g)
+        g = F.dropout(g, p= self.drop_rate, training=self.training)
+        g = self.layer3Conv(g, edge_index)
+        return F.log_softmax(g, dim=1)
 
 class TAGE(nn.Module):
     def __init__ (self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, k=3, has_edge_feature = True):
         super(TAGE, self).__init__()
         self.layer1Conv = TAGConv(input_numbers, hidden_layers, K=k) 
         self.layer2Conv = TAGConv(hidden_layers, hidden_layers, K=k)
-        self.linear =  nn.Linear(hidden_layers, numb_classfic, K=k)
         self.drop_rate = drop_out_rate
 
+    def resetParameter(self):
+        self.layer1Conv.reset_parameters() 
+        self.layer2Conv.reset_parameters()
+        # self.layer3Conv.reset_parameters()
+
+        # self.linear =  nn.Linear(hidden_layers, numb_classfic, K=k)
+       
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
         g = self.layer1Conv(g, edge_index)
@@ -112,6 +136,6 @@ class TAGE(nn.Module):
         g = self.layer2Conv(g, edge_index)
         g = F.relu(g)
         g = F.dropout(g, p = self.drop_rate, training=self.training)
-        g = self.linear(g)
-        return g
+        # g = self.linear(g)
+        return F.log_softmax(g, dim=1)
     #  dont know about TAGE nned to check documentation and examples
