@@ -75,8 +75,8 @@ class GAT(nn.Module):
     def resetParameter(self):
         self.layer1Conv.reset_parameters()
         self.layer2Conv.reset_parameters()
-        # nn.init.normal_(self.linear.weight)
-        # nn.init.normal_(self.linear.bias)
+        nn.init.normal_(self.linear.weight)
+        nn.init.normal_(self.linear.bias)
 
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
@@ -96,12 +96,15 @@ class SAGE(nn.Module):
         self.layer1Conv = SAGEConv(input_numbers, hidden_layers) 
         self.layer2Conv = SAGEConv(hidden_layers, hidden_layers)
         self.layer3Conv = SAGEConv(hidden_layers, numb_classfic)
-        # self.linear = nn.Linear(hidden_layers, numb_classfic)
+        self.linear = nn.Linear(hidden_layers, numb_classfic)
         self.drop_rate =   drop_out_rate
     
     def resetParameter(self):
         self.layer1Conv.reset_parameters()
         self.layer2Conv.reset_parameters()
+        self.layer3Conv.reset_parameters()
+        nn.init.normal_(self.linear.weight)
+        nn.init.normal_(self.linear.bias)
     
     def forward(self, data):
         g, edge_index = data.x, data.edge_index
@@ -112,19 +115,21 @@ class SAGE(nn.Module):
         g = F.relu(g)
         g = F.dropout(g, p= self.drop_rate, training=self.training)
         g = self.layer3Conv(g, edge_index)
+        # g = self.layer3Conv(g, edge_index)
         return F.log_softmax(g, dim=1)
 
-class TAGE(nn.Module):
+class TAG(nn.Module):
     def __init__ (self, numb_classfic, input_numbers = 100, hidden_layers = 64, drop_out_rate = 0.5, k=3, has_edge_feature = True):
-        super(TAGE, self).__init__()
+        super(TAG, self).__init__()
         self.layer1Conv = TAGConv(input_numbers, hidden_layers, K=k) 
         self.layer2Conv = TAGConv(hidden_layers, hidden_layers, K=k)
+        self.layer3Conv = TAGConv(hidden_layers, numb_classfic, K=k)
         self.drop_rate = drop_out_rate
 
     def resetParameter(self):
         self.layer1Conv.reset_parameters() 
         self.layer2Conv.reset_parameters()
-        # self.layer3Conv.reset_parameters()
+        self.layer3Conv.reset_parameters()
 
         # self.linear =  nn.Linear(hidden_layers, numb_classfic, K=k)
        
@@ -136,6 +141,6 @@ class TAGE(nn.Module):
         g = self.layer2Conv(g, edge_index)
         g = F.relu(g)
         g = F.dropout(g, p = self.drop_rate, training=self.training)
-        # g = self.linear(g)
+        g = self.layer3Conv(g, edge_index)
         return F.log_softmax(g, dim=1)
-    #  dont know about TAGE nned to check documentation and examples
+    #  dont know about TAG nned to check documentation and examples
