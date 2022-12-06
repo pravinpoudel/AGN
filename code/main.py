@@ -41,7 +41,7 @@ _seperator = "\t"
 #TODO: Check about lexical scoping in python; and you can sepcify cuda id as well; learn about that as well
 # torch.cuda.is_available() is available flag remain throughout the program
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-full = False
+full = True
 modelsOption = {
     'GCN' : GCNN,
     "GAT" : GAT,
@@ -123,12 +123,12 @@ def retriveData(dataDir):
     
     labels = torch.zeros(features.shape[0]).long()
     labelsf = torch.zeros(features.shape[0]).long()
-    ratio_VD = 0.15 #TODO: check if there is env file possible in python so that we can change this kind of value from a file
+    ratio_VD = 0.1 #TODO: check if there is env file possible in python so that we can change this kind of value from a file
     # create empty tensor to store the value in prediction
     # we can store lable of vertex in an array because same data is divided into two part
     train_mask = np.zeros(features.shape[0],  dtype=bool)
     test_mask = np.zeros(features.shape[0],  dtype=bool)
-    validation_mask = np.random.rand(features.shape[0]) < ratio_VD
+   
     _class = [];
    
     for index, row in test_labels.iterrows():
@@ -140,9 +140,7 @@ def retriveData(dataDir):
     # Main Logic here is: https://stackoverflow.com/questions/2451386/what-does-the-caret-operator-do
     assert False == True^True
     # we need to make false in the validation mask which is test data so False = True * False
-    validation_mask *= train_mask #now this is our Final validation mask
-    # since we got validation mask from training data we need to update that mask as well 
-    train_mask = train_mask ^ validation_mask
+   
 
     for index, row in train_labels.iterrows():
         node2, label2 = row.tolist()
@@ -150,9 +148,16 @@ def retriveData(dataDir):
         train_mask[node2] = 1
         _class.append(label2) if label2 not in _class else _class
     
+    validation_mask = np.random.rand(train_mask.shape[0]) < ratio_VD
+    validation_mask = validation_mask*train_mask
+     #now this is our Final validation mask
+    # since we got validation mask from training data we need to update that mask as well 
+    train_mask = train_mask ^ validation_mask
+
     conf_data["class_count"] = len(_class)
     print("number of labels - ", len(_class))
 
+ 
 
     return conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask
 
@@ -252,6 +257,7 @@ def main(args):
     else:
         print("loaded from the loaded file")
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = torch.load(loadedFile)
+    print("number of element in validation mask", np.count_nonzero(validation_mask))
 
     dataf = Data(x=features, edge_index=edge_index, edge_attr=edges_attr, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = test_mask  )
     # https://pytorch-geometric.readthedocs.io/en/latest/modules/data.html
@@ -269,7 +275,7 @@ def main(args):
     
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
     numb_epoch = 200
-    k_folds = 4
+    k_folds = 1
     # kfold = KFold(n_splits=k_folds, shuffle=True)
 
     model.train()
@@ -304,21 +310,22 @@ def main(args):
         train_indices = train_left_indices + train_right_indices
         val_indices = list(range(validatiionStart,validationEnd))
 
-        train_mask, testMask, trainFeature, trainLable, testFeature, testLabel, edge_indexTrain, edges_attrTrain, edge_indexTest, edges_attrTest = retriveTestData(train_indices, val_indices, features, labels, conf_data, k_step)
+        if not full:
+            train_mask, testMask, trainFeature, trainLable, testFeature, testLabel, edge_indexTrain, edges_attrTrain, edge_indexTest, edges_attrTest = retriveTestData(train_indices, val_indices, features, labels, conf_data, k_step)
 
-        trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
-        testData = Data(x=testFeature, edge_index=edge_indexTest, edge_attr=edges_attrTest, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
+            trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
+            testData = Data(x=testFeature, edge_index=edge_indexTest, edge_attr=edges_attrTest, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
 
         # print(" i am main data", data)
         # print(data.validation_mask)
         # learned that after y it is same as rest parameter in JS and Data is nothing just a dictionary
         # https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
         # creates an another array with data as an element and "device:cpu" as second element
-        trainData = trainData.to(device)
-        print(trainData.y)
-        testData = testData.to(device)
-        totalSize = trainData.size(dim=0) 
-        # model.resetParameter()
+            trainData = trainData.to(device)
+            print(trainData.y)
+            testData = testData.to(device)
+            totalSize = trainData.size(dim=0) 
+            # model.resetParameter()
         optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.005)       
         # model.resetParameter()
         averageTrainingAccuracy = 0
@@ -350,28 +357,36 @@ def main(args):
 
             with torch.no_grad():
                 model.eval()
-                print("testing ---------------------------------------------------------------------------")
+                print("validating ---------------------------------------------------------------------------")
                 if full:
-                       testOut = model(dataf)
-                       evaluation_accuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
+                       validationOut = model(dataf)
+                       validationAccuracy = accuracy_calculation(validationOut[dataf.validation_mask], dataf.y[dataf.validation_mask]) 
                 else:                
                         testOut = model(testData)
-                        evaluation_accuracy = accuracy_calculation(testOut, testLabel)
-                print("average testing accuracy: ", averageTestingAccuracy/(epoch+1))
+                        validationAccuracy = accuracy_calculation(testOut, testLabel)
+                print("average valudation accuracy: ", averageTestingAccuracy/(epoch+1))
                 # print("max testing accuracy", eval_maxAccuracy)
-                print("testing accuracy", evaluation_accuracy)
-                averageTestingAccuracy += evaluation_accuracy
-                if evaluation_accuracy > eval_maxAccuracy:
-                    eval_maxAccuracy = evaluation_accuracy
+                print("validation accuracy", validationAccuracy)
+                averageTestingAccuracy += validationAccuracy
+                if validationAccuracy > eval_maxAccuracy:
+                    eval_maxAccuracy = validationAccuracy
                     max_eval_epoch = epoch
                 # elif epoch - max_eval_epoch >= 100: 
                 #     break
                 model.train()
+
+        with torch.no_grad():
+            model.eval()
+            print("testing ------------------------------")
+            testOut = model(dataf)
+            testAccuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask])
+            print("test accuracy is", testAccuracy)
             # if((epoch+1)%10 == 0):
             #       print("------------------- Accuracy in epoch:", epoch+1, "---------------------------------------------------")
             #       print(averageTrainingAccuracy/(epoch+1))
             #       print(averageTestingAccuracy/(epoch+1))
-            
+        
+
       
 
         # summary(model=model, input_size=(1, conf_data["feature_count"], 64, 64, conf_data["class_count"]))  
