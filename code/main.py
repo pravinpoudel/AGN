@@ -300,8 +300,7 @@ def main(args):
         train_mask, testMask, trainFeature, trainLable, testFeature, testLabel, edge_indexTrain, edges_attrTrain, edge_indexTest, edges_attrTest = retriveTestData(train_indices, val_indices, features, labels, conf_data)
 
 
-
-        trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=trainLable, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
+        trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
         testData = Data(x=testFeature, edge_index=edge_indexTest, edge_attr=edges_attrTest, y=testLabel, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
 
         # print(" i am main data", data)
@@ -317,8 +316,8 @@ def main(args):
             optimizer.zero_grad()
             print("training")        
             outgraph = model(trainData)
-            loss = F.nll_loss(outgraph[trainData.train_mask], trainData.y[trainData.train_mask])
-            train_acc = accuracy_calculation(outgraph[trainData.train_mask], trainData.y[trainData.train_mask])
+            loss = F.nll_loss(outgraph, trainLable)
+            train_acc = accuracy_calculation(outgraph, trainLable)
             if train_acc > train_maxAccuracy:
                     train_maxAccuracy = train_acc
             # print(train_acc)
@@ -332,7 +331,7 @@ def main(args):
                 model.eval()
                 print("testing")
                 testOut = model(testData)
-                evaluation_accuracy = accuracy_calculation(testOut[testData.test_mask], testData.y[testData.test_mask])
+                evaluation_accuracy = accuracy_calculation(testOut, testLabel)
                 if evaluation_accuracy > eval_maxAccuracy:
                     eval_maxAccuracy = evaluation_accuracy
                     max_eval_epoch = epoch
