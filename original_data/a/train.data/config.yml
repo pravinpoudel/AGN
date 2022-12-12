@@ -1423,3 +1423,4 @@ SAGE_lr: 0.0013
 SAGE_wd: 0.0001
 TAG_lr: 0.0013
 TAG_wd: 0.0001
+full: False

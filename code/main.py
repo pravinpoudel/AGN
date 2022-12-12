@@ -50,7 +50,6 @@ writer.writerow(header)
 #TODO: Check about lexical scoping in python; and you can sepcify cuda id as well; learn about that as well
 # torch.cuda.is_available() is available flag remain throughout the program
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-full = False
 modelsOption = {
     'GCN' : GCNN,
     "GAT" : GAT,
@@ -299,7 +298,7 @@ def main(args):
     # averageTestingAccuracy = 0 
     eval_maxAccuracy = 0
     train_maxAccuracy = 0.0
-    
+        
     for k_step in range(k_folds):
         print("------------------------------------")
         print(f'FOLD {k_step}')
@@ -318,7 +317,7 @@ def main(args):
         train_indices = train_left_indices + train_right_indices
         val_indices = list(range(validatiionStart,validationEnd))
 
-        if not full:
+        if not conf_data["full"]:
             train_mask, testMask, trainFeature, trainLable, testFeature, testLabel, edge_indexTrain, edges_attrTrain, edge_indexTest, edges_attrTest = retriveTestData(train_indices, val_indices, features, labels, conf_data, k_step)
 
             trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
@@ -334,7 +333,7 @@ def main(args):
             testData = testData.to(device)
             totalSize = trainData.size(dim=0) 
         # model.resetParameter()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=weight_decay)       
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)       
         # model.resetParameter()
         averageTrainingAccuracy = 0
         averageTestingAccuracy = 0
@@ -343,7 +342,7 @@ def main(args):
         for epoch in range(numb_epoch):
             # print("training -------------------------------------------------------------")  
             optimizer.zero_grad()  
-            if full:    
+            if conf_data["full"]:    
                 outgraph = model(dataf)
                 loss = F.nll_loss(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
                 train_acc = accuracy_calculation(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
@@ -377,7 +376,7 @@ def main(args):
             with torch.no_grad():
                 model.eval()
                 # print("testing ---------------------------------------------------------------------------")
-                if full:
+                if conf_data["full"]:
                        testOut = model(dataf)   
                        evaluation_accuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
                 else:                
