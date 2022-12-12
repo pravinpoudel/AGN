@@ -15,3 +15,8 @@ dataset c is very very big so might take more than hours.
 --dataset attribute can be a, b or c 
 --M attribute takes GCN, GAT, SAGE, TAG as value
 ```
+
+### Note
+```
+requirements.txt file is inside the code/ folder
+```
