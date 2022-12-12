@@ -50,7 +50,7 @@ writer.writerow(header)
 #TODO: Check about lexical scoping in python; and you can sepcify cuda id as well; learn about that as well
 # torch.cuda.is_available() is available flag remain throughout the program
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-full = True
+full = False
 modelsOption = {
     'GCN' : GCNN,
     "GAT" : GAT,
@@ -66,7 +66,7 @@ def retriveData(dataDir):
     with open(os.path.join(myDirName, "config.yml"), "r") as stream:
         try:
             conf_data = yaml.safe_load(stream)
-            print(conf_data)
+            print(conf_data["GCN_lr"])
             print("---------------------------------------configuration file opened successfully ------------------------------------------------")
         except yaml.YAMLError as exc:
             print("there is an error")
@@ -248,7 +248,6 @@ def get_accuracy(actual, predicted, threshold):
 
 def main(args):
     # print(args)
-    
     model_type = args.M
     if args.M is None:
         model_type = "GCN"
@@ -271,6 +270,11 @@ def main(args):
     model = modelsOption[model_type](conf_data["class_count"], conf_data["feature_count"], hidden_layers=64, drop_out_rate = 0.1)
         # print("your model is created successfully")
         # print("sorry ", sys.exc_info()[0], "happened")
+  
+    learning_rate = model_type + "_lr"
+    learning_rate = conf_data[learning_rate]
+    weight_decay = model_type +  "_wd"
+    weight_decay = conf_data[weight_decay]
 
     # https://www.youtube.com/watch?v=7q7E91pHoW4&ab_channel=PythonEngineer
     # loss_fn = nn.CrossEntropyLoss() 
@@ -278,7 +282,7 @@ def main(args):
     
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
     numb_epoch = 100
-    k_folds = 1
+    k_folds = 4
     # kfold = KFold(n_splits=k_folds, shuffle=True)
 
     model.train()
@@ -330,7 +334,7 @@ def main(args):
             testData = testData.to(device)
             totalSize = trainData.size(dim=0) 
         # model.resetParameter()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.03, weight_decay=0.005)       
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=weight_decay)       
         # model.resetParameter()
         averageTrainingAccuracy = 0
         averageTestingAccuracy = 0
@@ -341,7 +345,6 @@ def main(args):
             optimizer.zero_grad()  
             if full:    
                 outgraph = model(dataf)
-                visualize(outgraph, color=outgraph)
                 loss = F.nll_loss(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
                 train_acc = accuracy_calculation(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
                 end1 = time.time()
