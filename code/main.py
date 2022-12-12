@@ -33,15 +33,24 @@ from models import GCNN, GAT, TAG, SAGE
 import time
 
 from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+
+import csv
 
 
 DATASET_DIR = '/work/GNN/original_data'
 _seperator = "\t"
 
+header = ["epoch", "time", "accuracy"]
+f = open('./cTAG1.csv', 'w')
+writer = csv.writer(f)
+writer.writerow(header)
+
 #TODO: Check about lexical scoping in python; and you can sepcify cuda id as well; learn about that as well
 # torch.cuda.is_available() is available flag remain throughout the program
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-full = False
+full = True
 modelsOption = {
     'GCN' : GCNN,
     "GAT" : GAT,
@@ -57,7 +66,7 @@ def retriveData(dataDir):
     with open(os.path.join(myDirName, "config.yml"), "r") as stream:
         try:
             conf_data = yaml.safe_load(stream)
-            # print(conf_data)
+            print(conf_data)
             print("---------------------------------------configuration file opened successfully ------------------------------------------------")
         except yaml.YAMLError as exc:
             print("there is an error")
@@ -156,26 +165,11 @@ def retriveData(dataDir):
 
     return conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask
 
-def getEvaluationMask(train_mask, ratio = 0.1):
-    tmp = train_mask.copy()
-    eval_mask = np.random.rand(train_mask.shape[0]) < ratio
-    eval_mask = eval_mask * train_mask
-    train_mask ^= eval_mask
-    print(train_mask)
-    print(eval_mask)
-    print("----------------------------")
-    print(len(train_mask))
-    print("----------------------------")
-    print(len(eval_mask))
-    assert all(tmp == train_mask + eval_mask)
-    return train_mask, eval_mask
-
-
 # generate kth fold data 
 def retriveTestData(trainIndices, testIndices, feature, label, conf_data, k_step):
-    print(" -------------------------retriving test and train data for k fold", k_step," -------------------------------------------")
-    print("train array size", len(trainIndices))
-    print("test array size", len(testIndices))
+    # print(" -------------------------retriving test and train data for k fold", k_step," -------------------------------------------")
+    # print("train array size", len(trainIndices))
+    # print("test array size", len(testIndices))
     feature = feature.numpy()
     label = label.numpy()
     train_mask = np.zeros(conf_data["n_node"],  dtype=bool)
@@ -204,7 +198,7 @@ def retriveTestData(trainIndices, testIndices, feature, label, conf_data, k_step
             dest = testIndices.index(destIndex)
             testEdges.append([src, dest, 1])
 
-    print(len(trainingEdges), len(testEdges))
+    # print(len(trainingEdges), len(testEdges))
     traingingEdgesTrain = torch.Tensor(trainingEdges).long().t()
     edge_indexTrain = traingingEdgesTrain[[0,1]]
     edges_attrTrain = traingingEdgesTrain[[2]].t().float()
@@ -263,12 +257,10 @@ def main(args):
     if not os.path.exists(loadedFile):
         print("data loading from source")
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = retriveData(args.dataset)
-        # train_mask, validation_mask = getEvaluationMask(train_mask, 0.1)
         torch.save([conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask], loadedFile)
     else:
-        print("loaded from the loaded file")
+        # print("loaded from the loaded file")
         conf_data, edge_index, edges_attr, features, labels, train_mask, validation_mask, test_mask = torch.load(loadedFile)
-    print("number of element in validation mask", np.count_nonzero(validation_mask))
 
     dataf = Data(x=features, edge_index=edge_index, edge_attr=edges_attr, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = test_mask  )
     # https://pytorch-geometric.readthedocs.io/en/latest/modules/data.html
@@ -276,7 +268,7 @@ def main(args):
     #TODO: Watch more videos in pytorch-geometric
     # in documentation: https://pytorch-geometric.readthedocs.io/en/1.3.2/modules/data.html shape [num_nodes, num_node_features] mean shape should be this value
     # we already have that shape; don't get confused with [] it just mean tuple of shape tensor.shape()
-    model = modelsOption[model_type](conf_data["class_count"], conf_data["feature_count"], hidden_layers=64, drop_out_rate = 0.5)
+    model = modelsOption[model_type](conf_data["class_count"], conf_data["feature_count"], hidden_layers=64, drop_out_rate = 0.1)
         # print("your model is created successfully")
         # print("sorry ", sys.exc_info()[0], "happened")
 
@@ -285,8 +277,8 @@ def main(args):
     # create optimizer
     
     # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-    numb_epoch = 200
-    k_folds = 5
+    numb_epoch = 100
+    k_folds = 1
     # kfold = KFold(n_splits=k_folds, shuffle=True)
 
     model.train()
@@ -303,6 +295,7 @@ def main(args):
     # averageTestingAccuracy = 0 
     eval_maxAccuracy = 0
     train_maxAccuracy = 0.0
+    
     for k_step in range(k_folds):
         print("------------------------------------")
         print(f'FOLD {k_step}')
@@ -323,32 +316,40 @@ def main(args):
 
         if not full:
             train_mask, testMask, trainFeature, trainLable, testFeature, testLabel, edge_indexTrain, edges_attrTrain, edge_indexTest, edges_attrTest = retriveTestData(train_indices, val_indices, features, labels, conf_data, k_step)
+
             trainData = Data(x=trainFeature, edge_index=edge_indexTrain, edge_attr=edges_attrTrain, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
             testData = Data(x=testFeature, edge_index=edge_indexTest, edge_attr=edges_attrTest, y=labels, train_mask = train_mask, validation_mask = validation_mask, test_mask = testMask  )
 
-        # print(" i am main data", data)
-        # print(data.validation_mask)
-        # learned that after y it is same as rest parameter in JS and Data is nothing just a dictionary
-        # https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
-        # creates an another array with data as an element and "device:cpu" as second element
+            # print(" i am main data", data)
+            # print(data.validation_mask)
+            # learned that after y it is same as rest parameter in JS and Data is nothing just a dictionary
+            # https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
+            # creates an another array with data as an element and "device:cpu" as second element
             trainData = trainData.to(device)
-            print(trainData.y)
+            # print(trainData.y)
             testData = testData.to(device)
             totalSize = trainData.size(dim=0) 
-            # model.resetParameter()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0005)       
-        model.resetParameter()
+        # model.resetParameter()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.03, weight_decay=0.005)       
+        # model.resetParameter()
         averageTrainingAccuracy = 0
-        averageTestingAccuracy = 0 
+        averageTestingAccuracy = 0
+        evaluation_accuracy = 0
+        train_acc = 0 
         for epoch in range(numb_epoch):
-            print("training -------------------------------------------------------------")  
+            # print("training -------------------------------------------------------------")  
             optimizer.zero_grad()  
             if full:    
                 outgraph = model(dataf)
+                visualize(outgraph, color=outgraph)
                 loss = F.nll_loss(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
                 train_acc = accuracy_calculation(outgraph[dataf.train_mask], dataf.y[dataf.train_mask])
+                end1 = time.time()
+                trainTime = end1-start
+                row = [epoch, trainTime, train_acc]
+                writer.writerow(row)
                 averageTrainingAccuracy += train_acc
-                print("training accuracy: ", averageTrainingAccuracy/(epoch+1))
+                # print("training accuracy: ", averageTrainingAccuracy/(epoch+1))
                 if train_acc > train_maxAccuracy:
                         train_maxAccuracy = train_acc
                 # print(train_acc)
@@ -356,7 +357,12 @@ def main(args):
                 outgraph = model(trainData)
                 loss = F.nll_loss(outgraph, trainLable)
                 train_acc = accuracy_calculation(outgraph, trainLable)
-                print("training accuracy:", train_acc)
+                if k_step == 0:
+                    end1 = time.time()
+                    trainTime = end1-start
+                    row = [epoch, trainTime, train_acc]
+                    writer.writerow(row)
+                    # print("for epoch ", epoch  , " and time = " , trainTime , " training accuracy" , train_acc)
                 averageTrainingAccuracy += train_acc
                 # print("average training accuracy: ", averageTrainingAccuracy/(epoch+1))
             loss.backward()
@@ -367,39 +373,38 @@ def main(args):
 
             with torch.no_grad():
                 model.eval()
-                print("validating ---------------------------------------------------------------------------")
+                # print("testing ---------------------------------------------------------------------------")
                 if full:
-                       validationOut = model(dataf)
-                       validationAccuracy = accuracy_calculation(validationOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
+                       testOut = model(dataf)   
+                       evaluation_accuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
                 else:                
                         testOut = model(testData)
-                        validationAccuracy = accuracy_calculation(testOut, testLabel)
-                print("average valudation accuracy: ", averageTestingAccuracy/(epoch+1))
+                        evaluation_accuracy = accuracy_calculation(testOut, testLabel)
+                # print("average testing accuracy: ", averageTestingAccuracy/(epoch+1))
                 # print("max testing accuracy", eval_maxAccuracy)
-                print("validation accuracy", validationAccuracy)
-                averageTestingAccuracy += validationAccuracy
-                if validationAccuracy > eval_maxAccuracy:
-                    eval_maxAccuracy = validationAccuracy
+                # print("testing accuracy", evaluation_accuracy)
+                averageTestingAccuracy += evaluation_accuracy
+                if evaluation_accuracy > eval_maxAccuracy:
+                    eval_maxAccuracy = evaluation_accuracy
                     max_eval_epoch = epoch
                 # elif epoch - max_eval_epoch >= 100: 
                 #     break
                 model.train()
-
-        # with torch.no_grad():
-        #     model.eval()
-        #     print("testing ------------------------------")
-        #     testOut = model(dataf)
-        #     testAccuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask])
-        #     print("test accuracy is", testAccuracy)
-        #     # if((epoch+1)%10 == 0):
-        #     #       print("------------------- Accuracy in epoch:", epoch+1, "---------------------------------------------------")
-        #     #       print(averageTrainingAccuracy/(epoch+1))
-        #     #       print(averageTestingAccuracy/(epoch+1))
-        # # summary(model=model, input_size=(1, conf_data["feature_count"], 64, 64, conf_data["class_count"]))  
+            # if((epoch+1)%10 == 0):
+            #       print("------------------- Accuracy in epoch:", epoch+1, "---------------------------------------------------")
+            #       print(averageTrainingAccuracy/(epoch+1))
+            #       print(averageTestingAccuracy/(epoch+1))
+            
+      
+        # summary(model=model, input_size=(1, conf_data["feature_count"], 64, 64, conf_data["class_count"]))  
     end = time.time()
     elapsed_time = end - start
     print("Training time is:", elapsed_time, "seconds")
+    print("Trainign Accuracy is", train_acc)
+    print("Evaluation Accuracy is:", evaluation_accuracy)
     print("model is",args.M)
+
+    # f.close()
 
 if __name__ == "__main__":
     print("------------------------------------------------------")

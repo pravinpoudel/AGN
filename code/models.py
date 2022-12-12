@@ -44,6 +44,9 @@ class GCNN(nn.Module): #dropout p default value is 0.5 anyway in Dropout functio
         # return super().register_parameter(name, param)
         self.layer1Conv.reset_parameters()
         self.layer2Conv.reset_parameters()
+        nn.init.normal_(self.layer3Linear.weight)
+        nn.init.normal_(self.layer3Linear.bias)
+        
         # self.layer1Conv.reset_parameters()
 
     def forward(self, data):
