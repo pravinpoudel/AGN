@@ -293,10 +293,9 @@ def main(args):
     max_eval_epoch = -1.0
     fraction = 1/k_folds
     seg = int(conf_data["n_node"]*fraction)
-    print("hello")
     # averageTrainingAccuracy = 0
     # averageTestingAccuracy = 0 
-    eval_maxAccuracy = 0
+    max_test_epoch = 0
     train_maxAccuracy = 0.0
         
     for k_step in range(k_folds):
@@ -378,16 +377,16 @@ def main(args):
                 # print("testing ---------------------------------------------------------------------------")
                 if conf_data["full"]:
                        testOut = model(dataf)   
-                       evaluation_accuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
+                       test_accuracy = accuracy_calculation(testOut[dataf.test_mask], dataf.y[dataf.test_mask]) 
                 else:                
                         testOut = model(testData)
-                        evaluation_accuracy = accuracy_calculation(testOut, testLabel)
+                        test_accuracy = accuracy_calculation(testOut, testLabel)
                 # print("average testing accuracy: ", averageTestingAccuracy/(epoch+1))
                 # print("max testing accuracy", eval_maxAccuracy)
                 # print("testing accuracy", evaluation_accuracy)
-                averageTestingAccuracy += evaluation_accuracy
-                if evaluation_accuracy > eval_maxAccuracy:
-                    eval_maxAccuracy = evaluation_accuracy
+                averageTestingAccuracy += test_accuracy
+                if test_accuracy > max_test_epoch:
+                    max_test_epoch = test_accuracy
                     max_eval_epoch = epoch
                 # elif epoch - max_eval_epoch >= 100: 
                 #     break
@@ -402,9 +401,9 @@ def main(args):
     end = time.time()
     elapsed_time = end - start
     print("Training time is:", elapsed_time, "seconds")
-    print("Trainign Accuracy is", train_acc)
-    print("Evaluation Accuracy is:", evaluation_accuracy)
+    print("Testing Accuracy is:", test_accuracy)
     print("model is",args.M)
+    print("training accuracy with every epoch is written in csv file, change it with form name_of_data + GNN Model")
 
     # f.close()
 
@@ -417,7 +416,7 @@ if __name__ == "__main__":
     parser.add_argument("--M", choices=["GCN", "GAT", "SAGE", "TAG"])
     parser.add_argument("--epoch", type=int, default=100) #defualt number of pass is 100
     _args = parser.parse_args()
-    print(main(_args))
+    main(_args)
 
 else:
      print ("i am executed from imported")
